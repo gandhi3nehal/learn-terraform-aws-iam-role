@@ -1,47 +1,27 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 provider "aws" {
-  alias   = "source"
-  profile = "source"
-  region  = "us-east-2"
+  region = "us-east-1"
 }
 
-provider "aws" {
-  alias   = "destination"
-  profile = "destination"
-  region  = "us-east-2"
-}
+resource "aws_iam_role" "example_role" {
+  name = "examplerole"
 
-data "aws_caller_identity" "source" {
-  provider = aws.source
-}
-
-data "aws_iam_policy" "ec2" {
-  provider = aws.destination
-  name     = "AmazonEC2FullAccess"
-}
-
-data "aws_iam_policy_document" "assume_role" {
-  provider = aws.destination
-  statement {
-    actions = [
-      "sts:AssumeRole",
-      "sts:TagSession",
-      "sts:SetSourceIdentity"
-    ]
-    principals {
-      type        = "AWS"
-      identifiers = ["arn:aws:iam::${data.aws_caller_identity.source.account_id}:root"]
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
     }
-  }
+  ]
+}
+EOF
 }
 
-resource "aws_iam_role" "assume_role" {
-  provider            = aws.destination
-  name                = "assume_role"
-  assume_role_policy  = data.aws_iam_policy_document.assume_role.json
-  managed_policy_arns = [data.aws_iam_policy.ec2.arn]
-  tags                = {}
+resource "aws_iam_role_policy_attachment" "example_attachment" {
+  role       = aws_iam_role.example_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
-
